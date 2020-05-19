@@ -2630,6 +2630,48 @@ static struct platform_device hx8369_panel_device = {
 };
 #endif
 
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+static struct resource ram_console_resources[] = {
+	{
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ram_console_device = {
+	.name 		= "ram_console",
+	.id 		= -1,
+	.num_resources	= ARRAY_SIZE(ram_console_resources),
+	.resource	= ram_console_resources,
+};
+void __init ram_console_debug_init_mem(unsigned long start, unsigned long size)
+{
+	struct resource *res;
+
+	res = platform_get_resource(&ram_console_device, IORESOURCE_MEM, 0);
+	if (!res)
+		goto fail;
+	res->start = start;
+	res->end = res->start + size - 1;
+
+	return;
+
+fail:
+	ram_console_device.resource = NULL;
+	ram_console_device.num_resources = 0;
+	pr_err("Failed to reserve memory block for ram console\n");
+}
+
+void __init ram_console_debug_init(void)
+{
+	int err;
+
+	err = platform_device_register(&ram_console_device);
+	if (err) {
+		pr_err("%s: ram console registration failed (%d)!\n", __func__, err);
+	}
+}
+#endif
+
 #ifdef CONFIG_LDI_MDNIE_SUPPORT
 struct platform_ldi_mdnie_data {
       	unsigned int mdnie_info;
@@ -2681,6 +2723,11 @@ static void __init hawaii_init(void)
 
 #ifdef CONFIG_ISDBT
 	isdbt_dev_init();
+#endif
+
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	ram_console_debug_init_mem(0x2E600000, 0x00100000);
+	ram_console_debug_init();
 #endif
 
 	return;
